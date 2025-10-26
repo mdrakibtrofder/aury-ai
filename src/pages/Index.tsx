@@ -1,68 +1,75 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import PostCard from "@/components/PostCard";
 import AskComposer from "@/components/AskComposer";
 import LoadingPost from "@/components/LoadingPost";
 import { toast } from "sonner";
-
-// Mock data for initial posts
-const INITIAL_POSTS = [
-  {
-    id: "1",
-    question: "What are the key benefits of mindfulness meditation?",
-    answer: "Mindfulness meditation offers numerous scientifically-proven benefits: improved focus and concentration, reduced stress and anxiety, better emotional regulation, enhanced self-awareness, and even physical health benefits like lower blood pressure. Regular practice can rewire your brain's neural pathways, leading to lasting positive changes in how you respond to life's challenges.",
-    topics: ["Health", "Science", "Psychology"],
-    author: { name: "Aury Bot", handle: "aurybot_health", isBot: true },
-    reactions: { hearts: 42, insights: 28, laughs: 3 },
-    timestamp: "2h ago",
-  },
-  {
-    id: "2",
-    question: "How will AI transform creative industries in the next decade?",
-    answer: "AI will become a powerful creative partner rather than a replacement. We'll see AI assist in ideation, handle repetitive tasks, and enable new forms of expression. Creative professionals who learn to collaborate with AI tools will have a significant advantage. The key is viewing AI as augmentation - it amplifies human creativity rather than replacing it. Expect to see hybrid workflows where AI handles technical execution while humans focus on vision, emotion, and storytelling.",
-    topics: ["AI", "Technology", "Future"],
-    author: { name: "Aury Bot", handle: "aurybot_tech", isBot: true },
-    reactions: { hearts: 87, insights: 64, laughs: 12 },
-    timestamp: "4h ago",
-  },
-  {
-    id: "3",
-    question: "What makes a company culture truly innovative?",
-    answer: "Innovative cultures share common traits: psychological safety where people can take risks without fear, flat hierarchies that encourage idea-sharing across levels, time and resources for experimentation, celebration of both successes and intelligent failures, and diverse teams bringing different perspectives. The best companies create environments where innovation isn't a department - it's a mindset embedded in daily work.",
-    topics: ["Business", "Culture", "Leadership"],
-    author: { name: "Aury Bot", handle: "aurybot_biz", isBot: true },
-    reactions: { hearts: 56, insights: 43, laughs: 5 },
-    timestamp: "6h ago",
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [currentView, setCurrentView] = useState("home");
-  const [posts, setPosts] = useState(INITIAL_POSTS);
+  const [posts, setPosts] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        id,
+        title,
+        content,
+        topics,
+        created_at,
+        is_bot,
+        author:profiles(username, handle),
+        bot:bots(name, handle)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error loading posts:', error);
+      toast.error('Failed to load posts');
+    } else {
+      setPosts(data || []);
+    }
+    setIsLoading(false);
+  };
 
   const handleAskSubmit = async (question: string, topics: string[]) => {
-    setIsGenerating(true);
+    const { data: { user } } = await supabase.auth.getUser();
     
-    // Simulate AI generation delay
-    setTimeout(() => {
-      const newPost = {
-        id: Date.now().toString(),
-        question,
-        answer: "This is a simulated AI-generated answer. In the full version, Aury will generate intelligent, contextual responses based on your question using advanced AI models.",
-        topics,
-        author: { name: "You", handle: "user", isBot: false },
-        reactions: { hearts: 0, insights: 0, laughs: 0 },
-        timestamp: "Just now",
-      };
-      
-      setPosts([newPost, ...posts]);
+    if (!user) {
+      toast.error('Please log in to create posts');
+      return;
+    }
+
+    setIsGenerating(true);
+    setComposerOpen(false);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-post', {
+        body: { question, topics }
+      });
+
+      if (error) throw error;
+
+      toast.success('Posts generated successfully!');
+      loadPosts();
+    } catch (error: any) {
+      console.error('Error generating post:', error);
+      toast.error(error.message || 'Failed to generate posts');
+    } finally {
       setIsGenerating(false);
-      setComposerOpen(false);
-      toast.success("Post generated successfully!");
-    }, 2000);
+    }
   };
 
   return (
@@ -86,9 +93,30 @@ const Index = () => {
           {isGenerating && <LoadingPost />}
 
           {/* Posts */}
-          {posts.map((post) => (
-            <PostCard key={post.id} {...post} />
-          ))}
+          {isLoading ? (
+            <LoadingPost />
+          ) : (
+            posts.map((post) => {
+              const author = post.is_bot ? post.bot : post.author;
+              const timestamp = new Date(post.created_at).toLocaleString();
+              
+              return (
+                <PostCard 
+                  key={post.id}
+                  id={post.id}
+                  question={post.title}
+                  answer={post.content}
+                  topics={post.topics || []}
+                  author={{
+                    name: author?.username || author?.name || 'Anonymous',
+                    handle: author?.handle || 'anonymous',
+                    isBot: post.is_bot
+                  }}
+                  timestamp={timestamp}
+                />
+              );
+            })
+          )}
 
           {/* Empty state */}
           {posts.length === 0 && !isGenerating && (

@@ -1,10 +1,15 @@
+import { useState, useEffect } from "react";
 import { Heart, MessageCircle, Share2, Bookmark, Lightbulb, Laugh } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import CommentSection from "./CommentSection";
 
 interface PostCardProps {
+  id: string;
   question: string;
   answer: string;
   topics: string[];
@@ -23,6 +28,7 @@ interface PostCardProps {
 }
 
 export default function PostCard({
+  id,
   question,
   answer,
   topics,
@@ -31,6 +37,104 @@ export default function PostCard({
   timestamp,
   className,
 }: PostCardProps) {
+  const [isSaved, setIsSaved] = useState(false);
+  const [currentReactions, setCurrentReactions] = useState(reactions);
+  const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    checkSavedStatus();
+    loadReactions();
+  }, [id]);
+
+  const checkSavedStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('saves')
+      .select('id')
+      .eq('post_id', id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    setIsSaved(!!data);
+  };
+
+  const loadReactions = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data } = await supabase
+      .from('reactions')
+      .select('reaction_type, user_id')
+      .eq('post_id', id);
+
+    if (data) {
+      const counts = { hearts: 0, insights: 0, laughs: 0 };
+      const userReacted = new Set<string>();
+
+      data.forEach((r: any) => {
+        if (r.reaction_type === 'heart') counts.hearts++;
+        if (r.reaction_type === 'insight') counts.insights++;
+        if (r.reaction_type === 'laugh') counts.laughs++;
+        if (user && r.user_id === user.id) userReacted.add(r.reaction_type);
+      });
+
+      setCurrentReactions(counts);
+      setUserReactions(userReacted);
+    }
+  };
+
+  const toggleReaction = async (type: 'heart' | 'insight' | 'laugh') => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('Please log in to react');
+      return;
+    }
+
+    if (userReactions.has(type)) {
+      await supabase
+        .from('reactions')
+        .delete()
+        .eq('post_id', id)
+        .eq('user_id', user.id)
+        .eq('reaction_type', type);
+    } else {
+      await supabase
+        .from('reactions')
+        .insert({ post_id: id, user_id: user.id, reaction_type: type });
+    }
+
+    loadReactions();
+  };
+
+  const toggleSave = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('Please log in to save posts');
+      return;
+    }
+
+    if (isSaved) {
+      await supabase
+        .from('saves')
+        .delete()
+        .eq('post_id', id)
+        .eq('user_id', user.id);
+      setIsSaved(false);
+      toast.success('Post removed from saved');
+    } else {
+      await supabase
+        .from('saves')
+        .insert({ post_id: id, user_id: user.id });
+      setIsSaved(true);
+      toast.success('Post saved!');
+    }
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.origin + '/post/' + id);
+    toast.success('Link copied to clipboard!');
+  };
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -104,42 +208,47 @@ export default function PostCard({
         <Button 
           variant="ghost" 
           size="sm" 
-          className="gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={() => toggleReaction('heart')}
+          className={cn(
+            "gap-1.5 hover:text-destructive hover:bg-destructive/10",
+            userReactions.has('heart') ? "text-destructive" : "text-muted-foreground"
+          )}
         >
-          <Heart className="h-4 w-4" />
-          {reactions.hearts > 0 && <span className="text-xs">{reactions.hearts}</span>}
+          <Heart className={cn("h-4 w-4", userReactions.has('heart') && "fill-current")} />
+          {currentReactions.hearts > 0 && <span className="text-xs">{currentReactions.hearts}</span>}
         </Button>
         
         <Button 
           variant="ghost" 
           size="sm" 
-          className="gap-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10"
+          onClick={() => toggleReaction('insight')}
+          className={cn(
+            "gap-1.5 hover:text-primary hover:bg-primary/10",
+            userReactions.has('insight') ? "text-primary" : "text-muted-foreground"
+          )}
         >
-          <Lightbulb className="h-4 w-4" />
-          {reactions.insights > 0 && <span className="text-xs">{reactions.insights}</span>}
+          <Lightbulb className={cn("h-4 w-4", userReactions.has('insight') && "fill-current")} />
+          {currentReactions.insights > 0 && <span className="text-xs">{currentReactions.insights}</span>}
         </Button>
         
         <Button 
           variant="ghost" 
           size="sm" 
-          className="gap-1.5 text-muted-foreground hover:text-secondary hover:bg-secondary/10"
+          onClick={() => toggleReaction('laugh')}
+          className={cn(
+            "gap-1.5 hover:text-secondary hover:bg-secondary/10",
+            userReactions.has('laugh') ? "text-secondary" : "text-muted-foreground"
+          )}
         >
-          <Laugh className="h-4 w-4" />
-          {reactions.laughs > 0 && <span className="text-xs">{reactions.laughs}</span>}
+          <Laugh className={cn("h-4 w-4", userReactions.has('laugh') && "fill-current")} />
+          {currentReactions.laughs > 0 && <span className="text-xs">{currentReactions.laughs}</span>}
         </Button>
         
         <div className="ml-auto flex gap-1">
           <Button 
             variant="ghost" 
             size="sm" 
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <MessageCircle className="h-4 w-4" />
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
+            onClick={handleShare}
             className="text-muted-foreground hover:text-foreground"
           >
             <Share2 className="h-4 w-4" />
@@ -148,12 +257,19 @@ export default function PostCard({
           <Button 
             variant="ghost" 
             size="sm" 
-            className="text-muted-foreground hover:text-foreground"
+            onClick={toggleSave}
+            className={cn(
+              "hover:text-foreground",
+              isSaved ? "text-primary" : "text-muted-foreground"
+            )}
           >
-            <Bookmark className="h-4 w-4" />
+            <Bookmark className={cn("h-4 w-4", isSaved && "fill-current")} />
           </Button>
         </div>
       </div>
+
+      {/* Comment Section */}
+      <CommentSection postId={id} />
     </article>
   );
 }

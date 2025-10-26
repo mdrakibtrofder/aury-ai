@@ -53,6 +53,21 @@ export default function ProfileSidebar({ isOpen, onClose }: ProfileSidebarProps)
       .slice(0, 2);
   };
 
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      'hsl(340 82% 65%)', // Pink
+      'hsl(280 80% 65%)', // Purple
+      'hsl(200 82% 60%)', // Blue
+      'hsl(160 70% 50%)', // Teal
+      'hsl(25 85% 60%)',  // Orange
+      'hsl(45 90% 55%)',  // Yellow
+      'hsl(120 60% 50%)', // Green
+      'hsl(15 80% 60%)',  // Red-Orange
+    ];
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[index % colors.length];
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -82,8 +97,14 @@ export default function ProfileSidebar({ isOpen, onClose }: ProfileSidebarProps)
             <>
               {/* Profile Info */}
               <div className="text-center space-y-4">
-                <Avatar className="h-20 w-20 mx-auto border-4 border-primary/20">
-                  <AvatarFallback className="text-2xl">
+                <Avatar 
+                  className="h-20 w-20 mx-auto border-4 border-background shadow-lg"
+                  style={{ backgroundColor: getAvatarColor(profile.username) }}
+                >
+                  <AvatarFallback 
+                    className="text-2xl text-white"
+                    style={{ backgroundColor: getAvatarColor(profile.username) }}
+                  >
                     {getInitials(profile.username)}
                   </AvatarFallback>
                 </Avatar>

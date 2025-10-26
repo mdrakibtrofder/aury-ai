@@ -19,9 +19,7 @@ serve(async (req) => {
 
     // Demo users data
     const demoUsers = [
-      { email: 'demo@aury.ai', password: 'auryai123', username: 'Aury Demo', handle: 'aury_demo' },
-      { email: 'rakib11803004@gmail.com', password: 'rakib11803004', username: 'Rakib Ahmed', handle: 'rakib_ahmed' },
-      { email: 'mdrakibtrofder@gmail.com', password: 'mdrakibtrofder', username: 'MD Rakib', handle: 'md_rakib' }
+      { email: 'demo@aury.ai', password: 'auryai123', username: 'Aury Demo', handle: 'aury_demo' }
     ];
 
     const userIds = [];
@@ -51,13 +49,13 @@ serve(async (req) => {
       }
     }
 
-    // Sample posts for each user
+    // Sample posts for each user (75 words max)
     const postTemplates = [
-      { title: "What are the best practices for building scalable web applications?", topics: ["Technology", "Development"], content: "Building scalable web applications requires careful consideration of architecture, database design, and infrastructure. Key practices include using microservices, implementing caching strategies, and leveraging cloud services for elasticity." },
-      { title: "How can AI improve healthcare diagnostics?", topics: ["Health", "AI"], content: "AI is revolutionizing healthcare diagnostics through advanced pattern recognition, faster analysis of medical images, and predictive modeling. Machine learning algorithms can detect diseases earlier and more accurately than traditional methods." },
-      { title: "What makes a successful startup in 2025?", topics: ["Business", "Startups"], content: "Successful startups in 2025 focus on solving real problems, leveraging AI and automation, building strong teams, and maintaining financial discipline. The key is finding product-market fit quickly and iterating based on user feedback." },
-      { title: "How is climate change affecting global culture?", topics: ["Culture", "Environment"], content: "Climate change is reshaping cultural practices worldwide, influencing art, music, literature, and daily life. Communities are adapting their traditions and creating new cultural expressions in response to environmental challenges." },
-      { title: "What are the emerging trends in software development?", topics: ["Technology", "Innovation"], content: "Emerging trends include AI-assisted coding, serverless architecture, low-code/no-code platforms, and enhanced cybersecurity measures. Developers are increasingly focusing on sustainability and ethical considerations in tech." }
+      { title: "What are the best practices for building scalable web applications?", topics: ["Technology"], content: "Building scalable applications requires thoughtful architecture and infrastructure planning. Focus on microservices for modularity, implement robust caching strategies, and leverage cloud services for dynamic scaling. Prioritize database optimization and API design for performance." },
+      { title: "How can AI improve healthcare diagnostics?", topics: ["Health"], content: "AI transforms healthcare through pattern recognition and predictive modeling. Machine learning analyzes medical images faster and detects diseases earlier than traditional methods. This technology enhances diagnostic accuracy while reducing time to treatment, ultimately improving patient outcomes." },
+      { title: "What makes a successful startup in 2025?", topics: ["Business"], content: "Success requires solving genuine problems with innovative solutions. Focus on rapid product-market fit discovery, build diverse teams, and maintain financial discipline. Leverage AI automation while staying adaptable to market feedback and emerging opportunities." },
+      { title: "How is climate change affecting global culture?", topics: ["Culture"], content: "Climate change reshapes cultural practices worldwide. Communities adapt traditions while creating new expressions addressing environmental challenges. Art, music, and literature increasingly reflect ecological concerns, fostering global awareness and inspiring sustainable cultural evolution." },
+      { title: "What are the emerging trends in software development?", topics: ["Technology"], content: "Key trends include AI-assisted coding, serverless architecture, and enhanced cybersecurity. Developers embrace low-code platforms while prioritizing sustainability and ethical tech practices. The focus shifts toward accessible, secure, and environmentally responsible software solutions." }
     ];
 
     // Create posts for each user
@@ -88,10 +86,10 @@ serve(async (req) => {
     ];
 
     const botPosts = [
-      { title: "Latest breakthrough in quantum computing explained", topics: ["Technology", "Science"], content: "Quantum computers are reaching new milestones with error correction and qubit stability. Recent advancements show promise for practical applications in cryptography and drug discovery." },
-      { title: "Mental health benefits of daily meditation", topics: ["Health", "Wellness"], content: "Research shows that regular meditation practice reduces stress, improves focus, and enhances emotional well-being. Just 10 minutes daily can make a significant difference." },
-      { title: "Remote work productivity tips for entrepreneurs", topics: ["Business", "Productivity"], content: "Successful remote entrepreneurs prioritize structured schedules, dedicated workspaces, and regular breaks. Communication tools and project management software are essential." },
-      { title: "The influence of social media on modern art", topics: ["Culture", "Art"], content: "Social media platforms have democratized art creation and distribution, enabling artists to reach global audiences. Digital art forms are gaining recognition in traditional galleries." }
+      { title: "Latest breakthrough in quantum computing explained", topics: ["Technology"], content: "Quantum computers achieve new milestones in error correction and qubit stability. Recent breakthroughs enable practical applications in cryptography and drug discovery, bringing quantum advantage closer to reality for solving complex computational problems." },
+      { title: "Mental health benefits of daily meditation", topics: ["Health"], content: "Regular meditation reduces stress, improves focus, and enhances emotional well-being. Research confirms that just 10 minutes daily significantly impacts mental health, helping manage anxiety and build resilience through mindfulness practice." },
+      { title: "Remote work productivity tips for entrepreneurs", topics: ["Business"], content: "Successful remote work requires structured schedules, dedicated workspaces, and regular breaks. Essential tools include communication platforms and project management software. Maintain work-life boundaries while staying connected with your team for optimal productivity." },
+      { title: "The influence of social media on modern art", topics: ["Culture"], content: "Social media democratizes art creation and distribution, connecting artists with global audiences instantly. Digital art gains traditional gallery recognition while platforms enable new creative expressions, transforming how we create and consume contemporary art." }
     ];
 
     // Create 5 posts for each bot (20 total)

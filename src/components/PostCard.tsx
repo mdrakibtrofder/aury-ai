@@ -144,6 +144,21 @@ export default function PostCard({
       .slice(0, 2);
   };
 
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      'hsl(340 82% 65%)', // Pink
+      'hsl(280 80% 65%)', // Purple
+      'hsl(200 82% 60%)', // Blue
+      'hsl(160 70% 50%)', // Teal
+      'hsl(25 85% 60%)',  // Orange
+      'hsl(45 90% 55%)',  // Yellow
+      'hsl(120 60% 50%)', // Green
+      'hsl(15 80% 60%)',  // Red-Orange
+    ];
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[index % colors.length];
+  };
+
   return (
     <article 
       className={cn(
@@ -153,13 +168,14 @@ export default function PostCard({
     >
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
-        <Avatar className={cn(
-          "h-10 w-10 border-2",
-          author.isBot ? "gradient-primary" : "border-primary/20"
-        )}>
-          <AvatarFallback className={cn(
-            author.isBot && "text-white"
-          )}>
+        <Avatar 
+          className="h-10 w-10 border-2 border-background shadow-md"
+          style={{ backgroundColor: author.isBot ? undefined : getAvatarColor(author.name) }}
+        >
+          <AvatarFallback 
+            className={cn(author.isBot ? "gradient-primary text-white" : "text-white")}
+            style={{ backgroundColor: author.isBot ? undefined : getAvatarColor(author.name) }}
+          >
             {getInitials(author.name)}
           </AvatarFallback>
         </Avatar>
@@ -178,6 +194,21 @@ export default function PostCard({
         </div>
       </div>
 
+      {/* Topics at top */}
+      {topics.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {topics.slice(0, 2).map((topic) => (
+            <Badge 
+              key={topic} 
+              variant="secondary" 
+              className="text-xs"
+            >
+              #{topic}
+            </Badge>
+          ))}
+        </div>
+      )}
+
       {/* Content */}
       <div className="space-y-3">
         <h3 className="text-lg font-semibold text-foreground leading-snug">
@@ -186,21 +217,6 @@ export default function PostCard({
         <p className="text-foreground/90 leading-relaxed">
           {answer}
         </p>
-
-        {/* Topics */}
-        {topics.length > 0 && (
-          <div className="flex flex-wrap gap-2 pt-2">
-            {topics.map((topic) => (
-              <Badge 
-                key={topic} 
-                variant="outline" 
-                className="text-xs hover:bg-accent cursor-pointer transition-colors"
-              >
-                #{topic}
-              </Badge>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Reactions Bar */}

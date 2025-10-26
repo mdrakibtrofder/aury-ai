@@ -29,8 +29,8 @@ const Index = () => {
         topics,
         created_at,
         is_bot,
-        author:profiles(username, handle),
-        bot:bots(name, handle)
+        author_id,
+        bot_id
       `)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -38,9 +38,32 @@ const Index = () => {
     if (error) {
       console.error('Error loading posts:', error);
       toast.error('Failed to load posts');
-    } else {
-      setPosts(data || []);
+      setIsLoading(false);
+      return;
     }
+
+    // Fetch author profiles
+    const authorIds = data?.filter(p => p.author_id).map(p => p.author_id) || [];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, handle')
+      .in('id', authorIds);
+
+    // Fetch bots
+    const botIds = data?.filter(p => p.bot_id).map(p => p.bot_id) || [];
+    const { data: bots } = await supabase
+      .from('bots')
+      .select('id, name, handle')
+      .in('id', botIds);
+
+    // Map profiles and bots to posts
+    const postsWithAuthors = data?.map(post => ({
+      ...post,
+      author: profiles?.find(p => p.id === post.author_id),
+      bot: bots?.find(b => b.id === post.bot_id)
+    }));
+
+    setPosts(postsWithAuthors || []);
     setIsLoading(false);
   };
 

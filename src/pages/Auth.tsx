@@ -84,6 +84,12 @@ export default function Auth() {
           <CardDescription>
             AI-powered social conversations
           </CardDescription>
+          <div className="mt-4 p-3 bg-muted rounded-lg text-sm space-y-1">
+            <p className="font-semibold text-foreground">Demo Accounts:</p>
+            <p className="text-muted-foreground">demo@aury.ai / auryai123</p>
+            <p className="text-muted-foreground">rakib11803004@gmail.com / rakib11803004</p>
+            <p className="text-muted-foreground">mdrakibtrofder@gmail.com / mdrakibtrofder</p>
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ProfileSidebar from "@/components/ProfileSidebar";
 
 interface HeaderProps {
   onAskClick: () => void;
@@ -22,6 +23,7 @@ export default function Header({ onAskClick }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [profileSidebarOpen, setProfileSidebarOpen] = useState(false);
 
   useEffect(() => {
     // Get initial user
@@ -116,12 +118,21 @@ export default function Header({ onAskClick }: HeaderProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setProfileSidebarOpen(true)}>
+                    <User className="mr-2 h-4 w-4" />
+                    View Profile
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              
+              <ProfileSidebar 
+                isOpen={profileSidebarOpen} 
+                onClose={() => setProfileSidebarOpen(false)} 
+              />
             </>
           ) : (
             <Button 

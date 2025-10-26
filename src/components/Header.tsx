@@ -1,14 +1,70 @@
-import { Sparkles, Search, PenSquare, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, Sparkles, LogOut, User, PenSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import ProfileSidebar from "@/components/ProfileSidebar";
 
 interface HeaderProps {
   onAskClick: () => void;
 }
 
 export default function Header({ onAskClick }: HeaderProps) {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [profileSidebarOpen, setProfileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    // Get initial user
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      if (user) loadProfile(user.id);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) loadProfile(session.user.id);
+      else setProfile(null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    setProfile(data);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success('Signed out successfully');
+    navigate('/auth');
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -40,18 +96,52 @@ export default function Header({ onAskClick }: HeaderProps) {
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          <Button 
-            onClick={onAskClick}
-            className="gradient-primary hover:opacity-90 transition-opacity shadow-md hover:shadow-glow"
-          >
-            <PenSquare className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Ask Question</span>
-            <span className="sm:hidden">Ask</span>
-          </Button>
-          
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <User className="h-5 w-5" />
-          </Button>
+          {user ? (
+            <>
+              <Button 
+                onClick={onAskClick}
+                className="gradient-primary hover:opacity-90 transition-opacity shadow-md hover:shadow-glow"
+              >
+                <PenSquare className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Ask Question</span>
+                <span className="sm:hidden">Ask</span>
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar className="h-8 w-8 border-2 border-primary/20">
+                      <AvatarFallback>
+                        {profile ? getInitials(profile.username) : <User className="h-4 w-4" />}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setProfileSidebarOpen(true)}>
+                    <User className="mr-2 h-4 w-4" />
+                    View Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <ProfileSidebar 
+                isOpen={profileSidebarOpen} 
+                onClose={() => setProfileSidebarOpen(false)} 
+              />
+            </>
+          ) : (
+            <Button 
+              onClick={() => navigate('/auth')}
+              variant="outline"
+            >
+              Sign In
+            </Button>
+          )}
         </div>
       </div>
     </header>

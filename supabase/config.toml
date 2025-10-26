@@ -1,0 +1,7 @@
+project_id = "nygjtuvlniralklzdgxv"
+
+[functions.generate-post]
+verify_jwt = true
+
+[functions.seed-demo-data]
+verify_jwt = false

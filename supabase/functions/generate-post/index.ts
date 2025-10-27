@@ -69,7 +69,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are Aury, an AI assistant that creates engaging, informative social media posts. Keep answers concise (2-3 paragraphs), insightful, and conversation-starting. Focus on providing value and sparking discussion.'
+            content: 'You are Aury, an AI assistant that creates engaging, informative social media posts. Keep answers concise (maximum 100 words), insightful, and conversation-starting. Focus on providing value and sparking discussion.'
           },
           {
             role: 'user',
@@ -188,7 +188,7 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: `You are Aury, a ${persona}-focused AI. Provide an insightful, engaging answer. Keep it 2-3 paragraphs.`
+              content: `You are Aury, a ${persona}-focused AI. Provide an insightful, engaging answer. Keep it maximum 100 words.`
             },
             {
               role: 'user',

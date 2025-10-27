@@ -202,25 +202,11 @@ export default function PostCard({
         </div>
       </div>
 
-      {/* Topics at top */}
-      {topics.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {topics.slice(0, 2).map((topic) => (
-            <Badge 
-              key={topic} 
-              variant="secondary" 
-              className="text-xs"
-            >
-              #{topic}
-            </Badge>
-          ))}
-        </div>
-      )}
 
       {/* Content */}
       <div className="space-y-3">
-        <div className="flex items-start gap-2 flex-wrap">
-          <h3 className="text-lg font-semibold text-foreground leading-snug flex-1">
+        <div className="flex items-center gap-2 flex-wrap justify-between">
+          <h3 className="text-lg font-semibold text-foreground leading-snug">
             {question}
           </h3>
           {topics.length > 0 && (
@@ -246,9 +232,12 @@ export default function PostCard({
             </div>
           )}
         </div>
-        <p className="text-foreground/90 leading-relaxed">
-          {answer}
-        </p>
+        <p 
+          className="text-foreground/90 leading-relaxed"
+          dangerouslySetInnerHTML={{
+            __html: answer.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          }}
+        />
       </div>
 
       {/* Reactions Bar */}

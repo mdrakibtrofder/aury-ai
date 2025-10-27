@@ -42,7 +42,7 @@ export default function Profile() {
 
     setProfile(profileData);
 
-    // Load user's posts and AI posts
+    // Load user's posts and AI posts created by user's bots
     const { data: userPosts } = await supabase
       .from("posts")
       .select(`
@@ -58,18 +58,44 @@ export default function Profile() {
       .eq("author_id", user.id)
       .order("created_at", { ascending: false });
 
-    // Fetch bots for AI posts
-    const botIds = userPosts?.filter(p => p.bot_id).map(p => p.bot_id) || [];
+    // Also fetch AI posts from user's bots (handle pattern: username_*)
+    const userHandle = profileData?.handle;
+    const { data: botPosts } = await supabase
+      .from("posts")
+      .select(`
+        id,
+        title,
+        content,
+        topics,
+        created_at,
+        is_bot,
+        author_id,
+        bot_id
+      `)
+      .eq("is_bot", true)
+      .order("created_at", { ascending: false });
+
+    // Fetch all bots
+    const allBotIds = [...(userPosts?.filter(p => p.bot_id).map(p => p.bot_id) || []), ...(botPosts?.filter(p => p.bot_id).map(p => p.bot_id) || [])];
     const { data: bots } = await supabase
       .from("bots")
       .select("id, name, handle")
-      .in("id", botIds);
+      .in("id", allBotIds);
 
-    const postsWithAuthors = userPosts?.map(post => ({
+    // Filter bot posts that belong to this user
+    const userBotPosts = botPosts?.filter(p => {
+      const bot = bots?.find(b => b.id === p.bot_id);
+      return bot?.handle?.startsWith(`${userHandle}_`);
+    }) || [];
+
+    // Combine user posts and user's bot posts
+    const allPosts = [...(userPosts || []), ...userBotPosts];
+    
+    const postsWithAuthors = allPosts.map(post => ({
       ...post,
       author: profileData,
       bot: bots?.find(b => b.id === post.bot_id)
-    })) || [];
+    }));
 
     setPosts(postsWithAuthors);
     setIsLoading(false);
@@ -81,7 +107,11 @@ export default function Profile() {
     } else if (filter === "user") {
       setFilteredPosts(posts.filter(p => !p.is_bot));
     } else if (filter === "ai") {
-      setFilteredPosts(posts.filter(p => p.is_bot));
+      // Filter AI posts created by user's bots (handle pattern: username_*)
+      const userHandle = profile?.handle;
+      setFilteredPosts(posts.filter(p => 
+        p.is_bot && p.bot?.handle?.startsWith(`${userHandle}_`)
+      ));
     }
   };
 

@@ -43,14 +43,7 @@ export default function CommentSection({ postId, className }: CommentSectionProp
   const loadComments = async () => {
     const { data, error } = await supabase
       .from('comments')
-      .select(`
-        id,
-        content,
-        created_at,
-        is_bot,
-        author:profiles(username, handle),
-        bot:bots(name, handle)
-      `)
+      .select('id, content, created_at, is_bot, author_id, bot_id')
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
@@ -59,7 +52,28 @@ export default function CommentSection({ postId, className }: CommentSectionProp
       return;
     }
 
-    setComments(data as any);
+    // Fetch author profiles
+    const authorIds = data?.filter(c => c.author_id).map(c => c.author_id) || [];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, handle')
+      .in('id', authorIds);
+
+    // Fetch bots
+    const botIds = data?.filter(c => c.bot_id).map(c => c.bot_id) || [];
+    const { data: bots } = await supabase
+      .from('bots')
+      .select('id, name, handle')
+      .in('id', botIds);
+
+    // Map profiles and bots to comments
+    const commentsWithAuthors = data?.map(comment => ({
+      ...comment,
+      author: profiles?.find(p => p.id === comment.author_id),
+      bot: bots?.find(b => b.id === comment.bot_id)
+    })) || [];
+
+    setComments(commentsWithAuthors as any);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

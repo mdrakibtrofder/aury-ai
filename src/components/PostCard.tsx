@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CommentSection from "./CommentSection";
+import { useNavigate } from "react-router-dom";
 
 interface PostCardProps {
   id: string;
@@ -37,6 +38,7 @@ export default function PostCard({
   timestamp,
   className,
 }: PostCardProps) {
+  const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const [currentReactions, setCurrentReactions] = useState(reactions);
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
@@ -169,8 +171,9 @@ export default function PostCard({
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
         <Avatar 
-          className="h-10 w-10 border-2 border-background shadow-md"
+          className="h-10 w-10 border-2 border-background shadow-md cursor-pointer hover:opacity-80 transition-opacity"
           style={{ backgroundColor: author.isBot ? undefined : getAvatarColor(author.name) }}
+          onClick={() => navigate('/profile')}
         >
           <AvatarFallback 
             className={cn(author.isBot ? "gradient-primary text-white" : "text-white")}
@@ -182,7 +185,12 @@ export default function PostCard({
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">{author.name}</span>
+            <span 
+              className="font-semibold text-foreground cursor-pointer hover:underline"
+              onClick={() => navigate('/profile')}
+            >
+              {author.name}
+            </span>
             <span className="text-sm text-muted-foreground">@{author.handle}</span>
             {author.isBot && (
               <Badge variant="secondary" className="text-xs">

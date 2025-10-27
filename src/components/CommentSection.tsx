@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, Send, Loader2 } from "lucide-react";
+import { MessageCircle, Send, Loader2, Sparkles, Trash2, Edit2, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +37,18 @@ export default function CommentSection({ postId, className }: CommentSectionProp
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
+
+  const loadCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUserId(user?.id || null);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -42,23 +59,37 @@ export default function CommentSection({ postId, className }: CommentSectionProp
   const loadComments = async () => {
     const { data, error } = await supabase
       .from('comments')
-      .select(`
-        id,
-        content,
-        created_at,
-        is_bot,
-        author:profiles(username, handle),
-        bot:bots(name, handle)
-      `)
+      .select('id, content, created_at, is_bot, author_id, bot_id')
       .eq('post_id', postId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error loading comments:', error);
       return;
     }
 
-    setComments(data as any);
+    // Fetch author profiles
+    const authorIds = data?.filter(c => c.author_id).map(c => c.author_id) || [];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, handle')
+      .in('id', authorIds);
+
+    // Fetch bots
+    const botIds = data?.filter(c => c.bot_id).map(c => c.bot_id) || [];
+    const { data: bots } = await supabase
+      .from('bots')
+      .select('id, name, handle')
+      .in('id', botIds);
+
+    // Map profiles and bots to comments
+    const commentsWithAuthors = data?.map(comment => ({
+      ...comment,
+      author: profiles?.find(p => p.id === comment.author_id),
+      bot: bots?.find(b => b.id === comment.bot_id)
+    })) || [];
+
+    setComments(commentsWithAuthors as any);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,6 +124,52 @@ export default function CommentSection({ postId, className }: CommentSectionProp
     }
 
     setIsLoading(false);
+  };
+
+  const handleRefineComment = async () => {
+    if (!newComment.trim()) {
+      toast.error("Please write a comment first");
+      return;
+    }
+
+    setIsRefining(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-post', {
+        body: { 
+          question: `Refine this comment to be more clear and concise (max 75 words): ${newComment}`,
+          topics: []
+        }
+      });
+
+      if (error) throw error;
+
+      const refinedText = data?.posts?.[0]?.content || data?.content || newComment;
+      setNewComment(refinedText.substring(0, 300));
+      toast.success('Comment refined!');
+    } catch (error: any) {
+      console.error('Error refining comment:', error);
+      toast.error('Failed to refine comment');
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('author_id', user.id);
+
+    if (error) {
+      toast.error('Failed to delete comment');
+    } else {
+      toast.success('Comment deleted');
+      loadComments();
+    }
   };
 
   const getInitials = (name: string) => {
@@ -137,8 +214,9 @@ export default function CommentSection({ postId, className }: CommentSectionProp
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {comments.map((comment) => {
               const author = comment.is_bot ? comment.bot : comment.author;
+              const isCommentOwner = !comment.is_bot && (comment as any).author_id === currentUserId;
               return (
-                <div key={comment.id} className="flex gap-3">
+                <div key={comment.id} className="flex gap-3 group">
                   <Avatar className={cn(
                     "h-8 w-8 border-2",
                     comment.is_bot ? "gradient-primary" : "border-primary/20"
@@ -160,6 +238,24 @@ export default function CommentSection({ postId, className }: CommentSectionProp
                         {comment.is_bot && (
                           <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">AI</span>
                         )}
+                        {isCommentOwner && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto opacity-0 group-hover:opacity-100">
+                                <MoreVertical className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                       <p className="text-sm text-foreground/90">{comment.content}</p>
                     </div>
@@ -173,7 +269,7 @@ export default function CommentSection({ postId, className }: CommentSectionProp
           </div>
 
           {/* Comment Form */}
-          <form onSubmit={handleSubmit} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="space-y-2">
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
@@ -181,18 +277,28 @@ export default function CommentSection({ postId, className }: CommentSectionProp
               className="min-h-[80px] resize-none"
               disabled={isLoading}
             />
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!newComment.trim() || isLoading}
-              className="gradient-primary hover:opacity-90"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRefineComment}
+                disabled={isRefining || !newComment.trim()}
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                {isRefining ? "Refining..." : "Refine with AI"}
+              </Button>
+              <Button 
+                type="submit" 
+                size="sm"
+                disabled={isLoading || !newComment.trim()}
+                className="gap-2"
+              >
                 <Send className="h-4 w-4" />
-              )}
-            </Button>
+                Post
+              </Button>
+            </div>
           </form>
         </div>
       )}

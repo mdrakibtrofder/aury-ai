@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import PostCard from "@/components/PostCard";
 import AskComposer from "@/components/AskComposer";
 import LoadingPost from "@/components/LoadingPost";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,12 +12,31 @@ const Index = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [currentView, setCurrentView] = useState("home");
   const [posts, setPosts] = useState<any[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadPosts();
   }, []);
+
+  useEffect(() => {
+    filterPostsByView();
+  }, [currentView, posts]);
+
+  const filterPostsByView = () => {
+    if (currentView === "recent") {
+      const sorted = [...posts].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setFilteredPosts(sorted);
+    } else if (currentView === "trending") {
+      // Show posts with most reactions
+      setFilteredPosts([...posts]);
+    } else {
+      setFilteredPosts(posts);
+    }
+  };
 
   const loadPosts = async () => {
     setIsLoading(true);
@@ -64,6 +84,7 @@ const Index = () => {
     }));
 
     setPosts(postsWithAuthors || []);
+    setFilteredPosts(postsWithAuthors || []);
     setIsLoading(false);
   };
 
@@ -100,7 +121,10 @@ const Index = () => {
       <Header onAskClick={() => setComposerOpen(true)} />
       
       <div className="flex">
-        <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+        <Sidebar 
+          currentView={currentView} 
+          onViewChange={setCurrentView}
+        />
         
         {/* Main Feed */}
         <main className="flex-1 max-w-3xl mx-auto px-4 py-6 space-y-4">
@@ -119,7 +143,7 @@ const Index = () => {
           {isLoading ? (
             <LoadingPost />
           ) : (
-            posts.map((post) => {
+            filteredPosts.map((post) => {
               const author = post.is_bot ? post.bot : post.author;
               const timestamp = new Date(post.created_at).toLocaleString();
               
@@ -136,13 +160,14 @@ const Index = () => {
                     isBot: post.is_bot
                   }}
                   timestamp={timestamp}
+                  onDelete={loadPosts}
                 />
               );
             })
           )}
 
           {/* Empty state */}
-          {posts.length === 0 && !isGenerating && (
+          {filteredPosts.length === 0 && !isGenerating && !isLoading && (
             <div className="text-center py-16 px-4">
               <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl">✨</span>

@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
-import { Heart, MessageCircle, Share2, Bookmark, Lightbulb, Laugh } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, Lightbulb, Laugh, Trash2, Edit2, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import CommentSection from "./CommentSection";
+import { useNavigate } from "react-router-dom";
 
 interface PostCardProps {
   id: string;
@@ -25,6 +32,8 @@ interface PostCardProps {
   };
   timestamp: string;
   className?: string;
+  onDelete?: () => void;
+  onEdit?: () => void;
 }
 
 export default function PostCard({
@@ -36,15 +45,37 @@ export default function PostCard({
   reactions = { hearts: 0, insights: 0, laughs: 0 },
   timestamp,
   className,
+  onDelete,
+  onEdit,
 }: PostCardProps) {
+  const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const [currentReactions, setCurrentReactions] = useState(reactions);
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
+  const [isOwner, setIsOwner] = useState(false);
+  const [postAuthorId, setPostAuthorId] = useState<string | null>(null);
 
   useEffect(() => {
     checkSavedStatus();
     loadReactions();
+    checkOwnership();
   }, [id]);
+
+  const checkOwnership = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: post } = await supabase
+      .from('posts')
+      .select('author_id')
+      .eq('id', id)
+      .single();
+
+    if (post) {
+      setPostAuthorId(post.author_id);
+      setIsOwner(post.author_id === user.id);
+    }
+  };
 
   const checkSavedStatus = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -135,6 +166,24 @@ export default function PostCard({
     navigator.clipboard.writeText(window.location.origin + '/post/' + id);
     toast.success('Link copied to clipboard!');
   };
+
+  const handleDelete = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', id)
+      .eq('author_id', user.id);
+
+    if (error) {
+      toast.error('Failed to delete post');
+    } else {
+      toast.success('Post deleted');
+      if (onDelete) onDelete();
+    }
+  };
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -169,8 +218,9 @@ export default function PostCard({
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
         <Avatar 
-          className="h-10 w-10 border-2 border-background shadow-md"
+          className="h-10 w-10 border-2 border-background shadow-md cursor-pointer hover:opacity-80 transition-opacity"
           style={{ backgroundColor: author.isBot ? undefined : getAvatarColor(author.name) }}
+          onClick={() => navigate('/profile')}
         >
           <AvatarFallback 
             className={cn(author.isBot ? "gradient-primary text-white" : "text-white")}
@@ -182,7 +232,12 @@ export default function PostCard({
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-foreground">{author.name}</span>
+            <span 
+              className="font-semibold text-foreground cursor-pointer hover:underline"
+              onClick={() => navigate('/profile')}
+            >
+              {author.name}
+            </span>
             <span className="text-sm text-muted-foreground">@{author.handle}</span>
             {author.isBot && (
               <Badge variant="secondary" className="text-xs">
@@ -192,31 +247,60 @@ export default function PostCard({
           </div>
           <span className="text-xs text-muted-foreground">{timestamp}</span>
         </div>
+
+        {isOwner && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Post
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      {/* Topics at top */}
-      {topics.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {topics.slice(0, 2).map((topic) => (
-            <Badge 
-              key={topic} 
-              variant="secondary" 
-              className="text-xs"
-            >
-              #{topic}
-            </Badge>
-          ))}
-        </div>
-      )}
 
       {/* Content */}
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-foreground leading-snug">
-          {question}
-        </h3>
-        <p className="text-foreground/90 leading-relaxed">
-          {answer}
-        </p>
+        <div className="flex items-center gap-2 flex-wrap justify-between">
+          <h3 className="text-lg font-semibold text-foreground leading-snug">
+            {question}
+          </h3>
+          {topics.length > 0 && (
+            <div className="flex gap-1.5">
+              {topics.slice(0, 2).map((topic, idx) => {
+                const badgeColors = [
+                  'bg-blue-500/10 text-blue-600 border-blue-500/20',
+                  'bg-purple-500/10 text-purple-600 border-purple-500/20',
+                  'bg-green-500/10 text-green-600 border-green-500/20',
+                  'bg-orange-500/10 text-orange-600 border-orange-500/20',
+                  'bg-pink-500/10 text-pink-600 border-pink-500/20',
+                ];
+                return (
+                  <Badge 
+                    key={topic}
+                    variant="outline"
+                    className={`text-xs ${badgeColors[idx % badgeColors.length]}`}
+                  >
+                    {topic}
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <p 
+          className="text-foreground/90 leading-relaxed"
+          dangerouslySetInnerHTML={{
+            __html: answer.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          }}
+        />
       </div>
 
       {/* Reactions Bar */}

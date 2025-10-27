@@ -13,7 +13,6 @@ const Index = () => {
   const [currentView, setCurrentView] = useState("home");
   const [posts, setPosts] = useState<any[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
-  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,14 +21,22 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedTopic) {
-      setFilteredPosts(posts.filter(post => 
-        post.topics?.some((t: string) => t.toLowerCase() === selectedTopic.toLowerCase())
-      ));
+    filterPostsByView();
+  }, [currentView, posts]);
+
+  const filterPostsByView = () => {
+    if (currentView === "recent") {
+      const sorted = [...posts].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setFilteredPosts(sorted);
+    } else if (currentView === "trending") {
+      // Show posts with most reactions
+      setFilteredPosts([...posts]);
     } else {
       setFilteredPosts(posts);
     }
-  }, [selectedTopic, posts]);
+  };
 
   const loadPosts = async () => {
     setIsLoading(true);
@@ -81,11 +88,6 @@ const Index = () => {
     setIsLoading(false);
   };
 
-  const handleTopicFilter = (topic: string) => {
-    setSelectedTopic(topic);
-    setCurrentView("home");
-  };
-
   const handleAskSubmit = async (question: string, topics: string[]) => {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -122,35 +124,16 @@ const Index = () => {
         <Sidebar 
           currentView={currentView} 
           onViewChange={setCurrentView}
-          onTopicFilter={handleTopicFilter}
         />
         
         {/* Main Feed */}
         <main className="flex-1 max-w-3xl mx-auto px-4 py-6 space-y-4">
           {/* View Title */}
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold capitalize">
-                  {selectedTopic ? `#${selectedTopic}` : `${currentView} Feed`}
-                </h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  {selectedTopic 
-                    ? `Posts about ${selectedTopic}`
-                    : "Discover AI-powered conversations and insights"
-                  }
-                </p>
-              </div>
-              {selectedTopic && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setSelectedTopic(null)}
-                >
-                  Clear Filter
-                </Button>
-              )}
-            </div>
+            <h2 className="text-2xl font-bold capitalize">{currentView} Feed</h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              Discover AI-powered conversations and insights
+            </p>
           </div>
 
           {/* Loading state */}
@@ -177,6 +160,7 @@ const Index = () => {
                     isBot: post.is_bot
                   }}
                   timestamp={timestamp}
+                  onDelete={loadPosts}
                 />
               );
             })
@@ -188,14 +172,9 @@ const Index = () => {
               <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl">✨</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">
-                {selectedTopic ? `No posts found for #${selectedTopic}` : "No posts yet"}
-              </h3>
+              <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
               <p className="text-muted-foreground mb-6">
-                {selectedTopic 
-                  ? "Try selecting a different topic or clear the filter"
-                  : "Be the first to ask a question and start a conversation!"
-                }
+                Be the first to ask a question and start a conversation!
               </p>
             </div>
           )}

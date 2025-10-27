@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
-import { Heart, MessageCircle, Share2, Bookmark, Lightbulb, Laugh } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, Lightbulb, Laugh, Trash2, Edit2, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -26,6 +32,8 @@ interface PostCardProps {
   };
   timestamp: string;
   className?: string;
+  onDelete?: () => void;
+  onEdit?: () => void;
 }
 
 export default function PostCard({
@@ -37,16 +45,37 @@ export default function PostCard({
   reactions = { hearts: 0, insights: 0, laughs: 0 },
   timestamp,
   className,
+  onDelete,
+  onEdit,
 }: PostCardProps) {
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
   const [currentReactions, setCurrentReactions] = useState(reactions);
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
+  const [isOwner, setIsOwner] = useState(false);
+  const [postAuthorId, setPostAuthorId] = useState<string | null>(null);
 
   useEffect(() => {
     checkSavedStatus();
     loadReactions();
+    checkOwnership();
   }, [id]);
+
+  const checkOwnership = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: post } = await supabase
+      .from('posts')
+      .select('author_id')
+      .eq('id', id)
+      .single();
+
+    if (post) {
+      setPostAuthorId(post.author_id);
+      setIsOwner(post.author_id === user.id);
+    }
+  };
 
   const checkSavedStatus = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -137,6 +166,24 @@ export default function PostCard({
     navigator.clipboard.writeText(window.location.origin + '/post/' + id);
     toast.success('Link copied to clipboard!');
   };
+
+  const handleDelete = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', id)
+      .eq('author_id', user.id);
+
+    if (error) {
+      toast.error('Failed to delete post');
+    } else {
+      toast.success('Post deleted');
+      if (onDelete) onDelete();
+    }
+  };
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -200,6 +247,22 @@ export default function PostCard({
           </div>
           <span className="text-xs text-muted-foreground">{timestamp}</span>
         </div>
+
+        {isOwner && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Post
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
 

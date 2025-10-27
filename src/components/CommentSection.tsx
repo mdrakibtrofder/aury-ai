@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, Send, Loader2, Sparkles } from "lucide-react";
+import { MessageCircle, Send, Loader2, Sparkles, Trash2, Edit2, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +39,16 @@ export default function CommentSection({ postId, className }: CommentSectionProp
   const [isLoading, setIsLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
+
+  const loadCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUserId(user?.id || null);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -45,7 +61,7 @@ export default function CommentSection({ postId, className }: CommentSectionProp
       .from('comments')
       .select('id, content, created_at, is_bot, author_id, bot_id')
       .eq('post_id', postId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error loading comments:', error);
@@ -138,6 +154,24 @@ export default function CommentSection({ postId, className }: CommentSectionProp
     }
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('author_id', user.id);
+
+    if (error) {
+      toast.error('Failed to delete comment');
+    } else {
+      toast.success('Comment deleted');
+      loadComments();
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -180,8 +214,9 @@ export default function CommentSection({ postId, className }: CommentSectionProp
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {comments.map((comment) => {
               const author = comment.is_bot ? comment.bot : comment.author;
+              const isCommentOwner = !comment.is_bot && (comment as any).author_id === currentUserId;
               return (
-                <div key={comment.id} className="flex gap-3">
+                <div key={comment.id} className="flex gap-3 group">
                   <Avatar className={cn(
                     "h-8 w-8 border-2",
                     comment.is_bot ? "gradient-primary" : "border-primary/20"
@@ -202,6 +237,24 @@ export default function CommentSection({ postId, className }: CommentSectionProp
                         <span className="text-xs text-muted-foreground">@{author?.handle}</span>
                         {comment.is_bot && (
                           <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">AI</span>
+                        )}
+                        {isCommentOwner && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto opacity-0 group-hover:opacity-100">
+                                <MoreVertical className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </div>
                       <p className="text-sm text-foreground/90">{comment.content}</p>

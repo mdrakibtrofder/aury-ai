@@ -211,9 +211,33 @@ export default function PostCard({
 
       {/* Content */}
       <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-foreground leading-snug">
-          {question}
-        </h3>
+        <div className="flex items-start gap-2 flex-wrap">
+          <h3 className="text-lg font-semibold text-foreground leading-snug flex-1">
+            {question}
+          </h3>
+          {topics.length > 0 && (
+            <div className="flex gap-1.5">
+              {topics.slice(0, 2).map((topic, idx) => {
+                const badgeColors = [
+                  'bg-blue-500/10 text-blue-600 border-blue-500/20',
+                  'bg-purple-500/10 text-purple-600 border-purple-500/20',
+                  'bg-green-500/10 text-green-600 border-green-500/20',
+                  'bg-orange-500/10 text-orange-600 border-orange-500/20',
+                  'bg-pink-500/10 text-pink-600 border-pink-500/20',
+                ];
+                return (
+                  <Badge 
+                    key={topic}
+                    variant="outline"
+                    className={`text-xs ${badgeColors[idx % badgeColors.length]}`}
+                  >
+                    {topic}
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+        </div>
         <p className="text-foreground/90 leading-relaxed">
           {answer}
         </p>

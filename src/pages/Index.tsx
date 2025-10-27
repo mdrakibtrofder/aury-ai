@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import PostCard from "@/components/PostCard";
 import AskComposer from "@/components/AskComposer";
 import LoadingPost from "@/components/LoadingPost";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -11,12 +12,24 @@ const Index = () => {
   const [composerOpen, setComposerOpen] = useState(false);
   const [currentView, setCurrentView] = useState("home");
   const [posts, setPosts] = useState<any[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadPosts();
   }, []);
+
+  useEffect(() => {
+    if (selectedTopic) {
+      setFilteredPosts(posts.filter(post => 
+        post.topics?.some((t: string) => t.toLowerCase() === selectedTopic.toLowerCase())
+      ));
+    } else {
+      setFilteredPosts(posts);
+    }
+  }, [selectedTopic, posts]);
 
   const loadPosts = async () => {
     setIsLoading(true);
@@ -64,7 +77,13 @@ const Index = () => {
     }));
 
     setPosts(postsWithAuthors || []);
+    setFilteredPosts(postsWithAuthors || []);
     setIsLoading(false);
+  };
+
+  const handleTopicFilter = (topic: string) => {
+    setSelectedTopic(topic);
+    setCurrentView("home");
   };
 
   const handleAskSubmit = async (question: string, topics: string[]) => {
@@ -100,16 +119,38 @@ const Index = () => {
       <Header onAskClick={() => setComposerOpen(true)} />
       
       <div className="flex">
-        <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+        <Sidebar 
+          currentView={currentView} 
+          onViewChange={setCurrentView}
+          onTopicFilter={handleTopicFilter}
+        />
         
         {/* Main Feed */}
         <main className="flex-1 max-w-3xl mx-auto px-4 py-6 space-y-4">
           {/* View Title */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold capitalize">{currentView} Feed</h2>
-            <p className="text-muted-foreground text-sm mt-1">
-              Discover AI-powered conversations and insights
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold capitalize">
+                  {selectedTopic ? `#${selectedTopic}` : `${currentView} Feed`}
+                </h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  {selectedTopic 
+                    ? `Posts about ${selectedTopic}`
+                    : "Discover AI-powered conversations and insights"
+                  }
+                </p>
+              </div>
+              {selectedTopic && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setSelectedTopic(null)}
+                >
+                  Clear Filter
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Loading state */}
@@ -119,7 +160,7 @@ const Index = () => {
           {isLoading ? (
             <LoadingPost />
           ) : (
-            posts.map((post) => {
+            filteredPosts.map((post) => {
               const author = post.is_bot ? post.bot : post.author;
               const timestamp = new Date(post.created_at).toLocaleString();
               
@@ -142,14 +183,19 @@ const Index = () => {
           )}
 
           {/* Empty state */}
-          {posts.length === 0 && !isGenerating && (
+          {filteredPosts.length === 0 && !isGenerating && !isLoading && (
             <div className="text-center py-16 px-4">
               <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl">✨</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {selectedTopic ? `No posts found for #${selectedTopic}` : "No posts yet"}
+              </h3>
               <p className="text-muted-foreground mb-6">
-                Be the first to ask a question and start a conversation!
+                {selectedTopic 
+                  ? "Try selecting a different topic or clear the filter"
+                  : "Be the first to ask a question and start a conversation!"
+                }
               </p>
             </div>
           )}

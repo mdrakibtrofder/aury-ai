@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 interface SidebarProps {
   currentView: string;
   onViewChange: (view: string) => void;
+  onTopicFilter?: (topic: string) => void;
 }
 
 const TRENDING_TOPICS = [
@@ -16,7 +17,7 @@ const TRENDING_TOPICS = [
   { name: "Philosophy", count: 128 },
 ];
 
-export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
+export default function Sidebar({ currentView, onViewChange, onTopicFilter }: SidebarProps) {
   const navItems = [
     { id: "home", label: "Home", icon: Home },
     { id: "trending", label: "Trending", icon: TrendingUp },
@@ -53,6 +54,7 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
           {TRENDING_TOPICS.map((topic) => (
             <button
               key={topic.name}
+              onClick={() => onTopicFilter?.(topic.name)}
               className="w-full text-left p-3 rounded-lg hover:bg-accent transition-colors group"
             >
               <div className="flex items-center justify-between">

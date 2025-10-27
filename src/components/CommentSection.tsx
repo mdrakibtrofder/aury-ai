@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, Send, Loader2 } from "lucide-react";
+import { MessageCircle, Send, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -31,6 +31,7 @@ export default function CommentSection({ postId, className }: CommentSectionProp
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -93,6 +94,34 @@ export default function CommentSection({ postId, className }: CommentSectionProp
     }
 
     setIsLoading(false);
+  };
+
+  const handleRefineComment = async () => {
+    if (!newComment.trim()) {
+      toast.error("Please write a comment first");
+      return;
+    }
+
+    setIsRefining(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-post', {
+        body: { 
+          question: `Refine this comment to be more clear and concise (max 75 words): ${newComment}`,
+          topics: []
+        }
+      });
+
+      if (error) throw error;
+
+      const refinedText = data?.posts?.[0]?.content || data?.content || newComment;
+      setNewComment(refinedText.substring(0, 300));
+      toast.success('Comment refined!');
+    } catch (error: any) {
+      console.error('Error refining comment:', error);
+      toast.error('Failed to refine comment');
+    } finally {
+      setIsRefining(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -173,7 +202,7 @@ export default function CommentSection({ postId, className }: CommentSectionProp
           </div>
 
           {/* Comment Form */}
-          <form onSubmit={handleSubmit} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="space-y-2">
             <Textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
@@ -181,18 +210,28 @@ export default function CommentSection({ postId, className }: CommentSectionProp
               className="min-h-[80px] resize-none"
               disabled={isLoading}
             />
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!newComment.trim() || isLoading}
-              className="gradient-primary hover:opacity-90"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRefineComment}
+                disabled={isRefining || !newComment.trim()}
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                {isRefining ? "Refining..." : "Refine with AI"}
+              </Button>
+              <Button 
+                type="submit" 
+                size="sm"
+                disabled={isLoading || !newComment.trim()}
+                className="gap-2"
+              >
                 <Send className="h-4 w-4" />
-              )}
-            </Button>
+                Post
+              </Button>
+            </div>
           </form>
         </div>
       )}

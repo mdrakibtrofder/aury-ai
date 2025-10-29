@@ -4,8 +4,6 @@ import Sidebar from "@/components/Sidebar";
 import PostCard from "@/components/PostCard";
 import AskComposer from "@/components/AskComposer";
 import LoadingPost from "@/components/LoadingPost";
-import PostDetailModal from "@/components/PostDetailModal";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,8 +14,6 @@ const Index = () => {
   const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedPost, setSelectedPost] = useState<any>(null);
-  const [postModalOpen, setPostModalOpen] = useState(false);
 
   useEffect(() => {
     loadPosts();
@@ -119,21 +115,6 @@ const Index = () => {
     }
   };
 
-  const handlePostClick = (post: any) => {
-    setSelectedPost({
-      id: post.id,
-      title: post.title,
-      content: post.content,
-      topics: post.topics || [],
-      author: {
-        name: (post.is_bot ? post.bot?.name : post.author?.username) || 'Anonymous',
-        handle: (post.is_bot ? post.bot?.handle : post.author?.handle) || 'anonymous',
-        isBot: post.is_bot
-      },
-      timestamp: new Date(post.created_at).toLocaleString()
-    });
-    setPostModalOpen(true);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -167,21 +148,20 @@ const Index = () => {
               const timestamp = new Date(post.created_at).toLocaleString();
               
               return (
-                <div key={post.id} onClick={() => handlePostClick(post)}>
-                  <PostCard 
-                    id={post.id}
-                    question={post.title}
-                    answer={post.content}
-                    topics={post.topics || []}
-                    author={{
-                      name: author?.username || author?.name || 'Anonymous',
-                      handle: author?.handle || 'anonymous',
-                      isBot: post.is_bot
-                    }}
-                    timestamp={timestamp}
-                    onDelete={loadPosts}
-                  />
-                </div>
+                <PostCard 
+                  key={post.id}
+                  id={post.id}
+                  question={post.title}
+                  answer={post.content}
+                  topics={post.topics || []}
+                  author={{
+                    name: author?.username || author?.name || 'Anonymous',
+                    handle: author?.handle || 'anonymous',
+                    isBot: post.is_bot
+                  }}
+                  timestamp={timestamp}
+                  onDelete={loadPosts}
+                />
               );
             })
           )}
@@ -207,14 +187,6 @@ const Index = () => {
         onOpenChange={setComposerOpen}
         onSubmit={handleAskSubmit}
         isGenerating={isGenerating}
-      />
-
-      {/* Post Detail Modal */}
-      <PostDetailModal
-        open={postModalOpen}
-        onOpenChange={setPostModalOpen}
-        post={selectedPost}
-        onDelete={loadPosts}
       />
     </div>
   );

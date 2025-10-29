@@ -54,6 +54,7 @@ export default function PostCard({
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
   const [isOwner, setIsOwner] = useState(false);
   const [postAuthorId, setPostAuthorId] = useState<string | null>(null);
+  const [showExpandedView, setShowExpandedView] = useState(false);
 
   useEffect(() => {
     checkSavedStatus();
@@ -208,10 +209,16 @@ export default function PostCard({
     return colors[index % colors.length];
   };
 
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/profile/${author.handle}`);
+  };
+
   return (
     <article 
+      onClick={() => setShowExpandedView(true)}
       className={cn(
-        "bg-card border rounded-xl p-6 hover:shadow-lg transition-all duration-300 animate-fade-in",
+        "bg-card border rounded-xl p-6 hover:shadow-lg transition-all duration-300 animate-fade-in cursor-pointer",
         className
       )}
     >
@@ -220,7 +227,7 @@ export default function PostCard({
         <Avatar 
           className="h-10 w-10 border-2 border-background shadow-md cursor-pointer hover:opacity-80 transition-opacity"
           style={{ backgroundColor: author.isBot ? undefined : getAvatarColor(author.name) }}
-          onClick={() => navigate('/profile')}
+          onClick={handleProfileClick}
         >
           <AvatarFallback 
             className={cn(author.isBot ? "gradient-primary text-white" : "text-white")}
@@ -234,7 +241,7 @@ export default function PostCard({
           <div className="flex items-center gap-2">
             <span 
               className="font-semibold text-foreground cursor-pointer hover:underline"
-              onClick={() => navigate('/profile')}
+              onClick={handleProfileClick}
             >
               {author.name}
             </span>
@@ -370,6 +377,34 @@ export default function PostCard({
 
       {/* Comment Section */}
       <CommentSection postId={id} />
+
+      {/* Expanded View Modal */}
+      {showExpandedView && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowExpandedView(false)}
+        >
+          <div 
+            className="bg-card border rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <PostCard
+                id={id}
+                question={question}
+                answer={answer}
+                topics={topics}
+                author={author}
+                timestamp={timestamp}
+                onDelete={() => {
+                  setShowExpandedView(false);
+                  onDelete?.();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

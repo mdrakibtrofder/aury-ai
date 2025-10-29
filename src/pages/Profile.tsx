@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "@/components/Header";
 import PostCard from "@/components/PostCard";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,15 +12,17 @@ type FilterType = "all" | "user" | "ai";
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { handle } = useParams<{ handle: string }>();
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
   const [filter, setFilter] = useState<FilterType>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   useEffect(() => {
     loadProfile();
-  }, []);
+  }, [handle]);
 
   useEffect(() => {
     filterPosts();
@@ -28,81 +30,162 @@ export default function Profile() {
 
   const loadProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error("Please log in to view profile");
-      navigate("/auth");
-      return;
-    }
+    
+    let profileData;
+    let targetUserId;
 
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    if (handle) {
+      // Viewing another user's profile or bot profile
+      // Check if it's a bot
+      const { data: botData } = await supabase
+        .from("bots")
+        .select("*")
+        .eq("handle", handle)
+        .maybeSingle();
+
+      if (botData) {
+        // It's a bot profile
+        profileData = {
+          username: botData.name,
+          handle: botData.handle,
+          bio: `AI Agent - ${botData.persona_type}`,
+          id: botData.id,
+          isBot: true
+        };
+        targetUserId = botData.created_by_user_id;
+      } else {
+        // It's a user profile
+        const { data: userData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("handle", handle)
+          .maybeSingle();
+
+        if (!userData) {
+          toast.error("Profile not found");
+          navigate("/");
+          return;
+        }
+        profileData = userData;
+        targetUserId = userData.id;
+      }
+      setIsOwnProfile(user?.id === targetUserId);
+    } else {
+      // Viewing own profile
+      if (!user) {
+        toast.error("Please log in to view profile");
+        navigate("/auth");
+        return;
+      }
+
+      const { data: userData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      profileData = userData;
+      targetUserId = user.id;
+      setIsOwnProfile(true);
+    }
 
     setProfile(profileData);
 
-    // Load user's posts and AI posts created by user's bots
-    const { data: userPosts } = await supabase
-      .from("posts")
-      .select(`
-        id,
-        title,
-        content,
-        topics,
-        created_at,
-        is_bot,
-        author_id,
-        bot_id
-      `)
-      .eq("author_id", user.id)
-      .order("created_at", { ascending: false });
+    if (profileData.isBot) {
+      // Load bot's posts
+      const { data: botPosts } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          title,
+          content,
+          topics,
+          created_at,
+          is_bot,
+          author_id,
+          bot_id
+        `)
+        .eq("bot_id", profileData.id)
+        .order("created_at", { ascending: false });
 
-    // Also fetch AI posts from user's bots (handle pattern: username_*)
-    const userHandle = profileData?.handle;
-    const { data: botPosts } = await supabase
-      .from("posts")
-      .select(`
-        id,
-        title,
-        content,
-        topics,
-        created_at,
-        is_bot,
-        author_id,
-        bot_id
-      `)
-      .eq("is_bot", true)
-      .order("created_at", { ascending: false });
+      const { data: bots } = await supabase
+        .from("bots")
+        .select("id, name, handle")
+        .eq("id", profileData.id);
 
-    // Fetch all bots
-    const allBotIds = [...(userPosts?.filter(p => p.bot_id).map(p => p.bot_id) || []), ...(botPosts?.filter(p => p.bot_id).map(p => p.bot_id) || [])];
-    const { data: bots } = await supabase
-      .from("bots")
-      .select("id, name, handle")
-      .in("id", allBotIds);
+      const postsWithAuthors = botPosts?.map(post => ({
+        ...post,
+        bot: bots?.[0]
+      })) || [];
 
-    // Filter bot posts that belong to this user
-    const userBotPosts = botPosts?.filter(p => {
-      const bot = bots?.find(b => b.id === p.bot_id);
-      return bot?.handle?.startsWith(`${userHandle}_`);
-    }) || [];
+      setPosts(postsWithAuthors);
+    } else {
+      // Load user's posts and AI posts created by user's bots
+      const { data: userPosts } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          title,
+          content,
+          topics,
+          created_at,
+          is_bot,
+          author_id,
+          bot_id
+        `)
+        .eq("author_id", targetUserId)
+        .order("created_at", { ascending: false });
 
-    // Combine user posts and user's bot posts
-    const allPosts = [...(userPosts || []), ...userBotPosts];
+      // Also fetch AI posts from user's bots (handle pattern: username_*)
+      const userHandle = profileData?.handle;
+      const { data: botPosts } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          title,
+          content,
+          topics,
+          created_at,
+          is_bot,
+          author_id,
+          bot_id
+        `)
+        .eq("is_bot", true)
+        .order("created_at", { ascending: false });
+
+      // Fetch all bots
+      const allBotIds = [...(userPosts?.filter(p => p.bot_id).map(p => p.bot_id) || []), ...(botPosts?.filter(p => p.bot_id).map(p => p.bot_id) || [])];
+      const { data: bots } = await supabase
+        .from("bots")
+        .select("id, name, handle")
+        .in("id", allBotIds);
+
+      // Filter bot posts that belong to this user
+      const userBotPosts = botPosts?.filter(p => {
+        const bot = bots?.find(b => b.id === p.bot_id);
+        return bot?.handle?.startsWith(`${userHandle}_`);
+      }) || [];
+
+      // Combine user posts and user's bot posts
+      const allPosts = [...(userPosts || []), ...userBotPosts];
+      
+      const postsWithAuthors = allPosts.map(post => ({
+        ...post,
+        author: profileData,
+        bot: bots?.find(b => b.id === post.bot_id)
+      }));
+
+      setPosts(postsWithAuthors);
+    }
     
-    const postsWithAuthors = allPosts.map(post => ({
-      ...post,
-      author: profileData,
-      bot: bots?.find(b => b.id === post.bot_id)
-    }));
-
-    setPosts(postsWithAuthors);
     setIsLoading(false);
   };
 
   const filterPosts = () => {
-    if (filter === "all") {
+    if (profile?.isBot) {
+      // For bot profiles, show all posts from that bot
+      setFilteredPosts(posts);
+    } else if (filter === "all") {
       setFilteredPosts(posts);
     } else if (filter === "user") {
       setFilteredPosts(posts.filter(p => !p.is_bot));
@@ -190,29 +273,31 @@ export default function Profile() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2 mb-6 border-b">
-          <Button
-            variant="ghost"
-            onClick={() => setFilter("all")}
-            className={filter === "all" ? "border-b-2 border-primary rounded-none" : "rounded-none"}
-          >
-            All Posts ({posts.length})
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setFilter("user")}
-            className={filter === "user" ? "border-b-2 border-primary rounded-none" : "rounded-none"}
-          >
-            My Posts ({posts.filter(p => !p.is_bot).length})
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setFilter("ai")}
-            className={filter === "ai" ? "border-b-2 border-primary rounded-none" : "rounded-none"}
-          >
-            AI Agent Posts ({posts.filter(p => p.is_bot).length})
-          </Button>
-        </div>
+        {!profile?.isBot && (
+          <div className="flex gap-2 mb-6 border-b">
+            <Button
+              variant="ghost"
+              onClick={() => setFilter("all")}
+              className={filter === "all" ? "border-b-2 border-primary rounded-none" : "rounded-none"}
+            >
+              All Posts ({posts.length})
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setFilter("user")}
+              className={filter === "user" ? "border-b-2 border-primary rounded-none" : "rounded-none"}
+            >
+              {isOwnProfile ? "My Posts" : "Posts"} ({posts.filter(p => !p.is_bot).length})
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setFilter("ai")}
+              className={filter === "ai" ? "border-b-2 border-primary rounded-none" : "rounded-none"}
+            >
+              AI Agent Posts ({posts.filter(p => p.is_bot).length})
+            </Button>
+          </div>
+        )}
 
         {/* Posts */}
         <div className="space-y-4">

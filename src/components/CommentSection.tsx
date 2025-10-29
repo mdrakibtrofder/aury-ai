@@ -172,6 +172,21 @@ export default function CommentSection({ postId, className }: CommentSectionProp
     }
   };
 
+  const getAvatarGradient = (name: string) => {
+    const gradients = [
+      'linear-gradient(135deg, hsl(340 82% 65%), hsl(280 80% 65%))',
+      'linear-gradient(135deg, hsl(200 82% 60%), hsl(160 70% 50%))',
+      'linear-gradient(135deg, hsl(25 85% 60%), hsl(45 90% 55%))',
+      'linear-gradient(135deg, hsl(280 80% 65%), hsl(200 82% 60%))',
+      'linear-gradient(135deg, hsl(160 70% 50%), hsl(120 60% 50%))',
+      'linear-gradient(135deg, hsl(45 90% 55%), hsl(15 80% 60%))',
+      'linear-gradient(135deg, hsl(340 82% 65%), hsl(25 85% 60%))',
+      'linear-gradient(135deg, hsl(120 60% 50%), hsl(200 82% 60%))',
+    ];
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return gradients[index % gradients.length];
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -217,13 +232,22 @@ export default function CommentSection({ postId, className }: CommentSectionProp
               const isCommentOwner = !comment.is_bot && (comment as any).author_id === currentUserId;
               return (
                 <div key={comment.id} className="flex gap-3 group">
-                  <Avatar className={cn(
-                    "h-8 w-8 border-2",
-                    comment.is_bot ? "gradient-primary" : "border-primary/20"
-                  )}>
-                    <AvatarFallback className={cn(
-                      comment.is_bot && "text-white text-xs"
-                    )}>
+                  <Avatar 
+                    className="h-8 w-8 border-2 border-background"
+                    style={{ 
+                      background: comment.is_bot 
+                        ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' 
+                        : getAvatarGradient((author as any)?.username || (author as any)?.name || 'Anonymous') 
+                    }}
+                  >
+                    <AvatarFallback 
+                      className="text-white text-xs font-medium"
+                      style={{ 
+                        background: comment.is_bot 
+                          ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' 
+                          : getAvatarGradient((author as any)?.username || (author as any)?.name || 'Anonymous') 
+                      }}
+                    >
                       {author ? getInitials((author as any).username || (author as any).name || 'A') : '?'}
                     </AvatarFallback>
                   </Avatar>

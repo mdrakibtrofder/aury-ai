@@ -207,19 +207,19 @@ export default function Profile() {
       .slice(0, 2);
   };
 
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      'hsl(340 82% 65%)',
-      'hsl(280 80% 65%)',
-      'hsl(200 82% 60%)',
-      'hsl(160 70% 50%)',
-      'hsl(25 85% 60%)',
-      'hsl(45 90% 55%)',
-      'hsl(120 60% 50%)',
-      'hsl(15 80% 60%)',
+  const getAvatarGradient = (name: string) => {
+    const gradients = [
+      'linear-gradient(135deg, hsl(340 82% 65%), hsl(280 80% 65%))',
+      'linear-gradient(135deg, hsl(200 82% 60%), hsl(160 70% 50%))',
+      'linear-gradient(135deg, hsl(25 85% 60%), hsl(45 90% 55%))',
+      'linear-gradient(135deg, hsl(280 80% 65%), hsl(200 82% 60%))',
+      'linear-gradient(135deg, hsl(160 70% 50%), hsl(120 60% 50%))',
+      'linear-gradient(135deg, hsl(45 90% 55%), hsl(15 80% 60%))',
+      'linear-gradient(135deg, hsl(340 82% 65%), hsl(25 85% 60%))',
+      'linear-gradient(135deg, hsl(120 60% 50%), hsl(200 82% 60%))',
     ];
     const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[index % colors.length];
+    return gradients[index % gradients.length];
   };
 
   if (isLoading) {
@@ -252,11 +252,11 @@ export default function Profile() {
           <div className="flex items-start gap-6">
             <Avatar 
               className="h-24 w-24 border-4 border-background shadow-lg"
-              style={{ backgroundColor: getAvatarColor(profile?.username || "User") }}
+              style={{ background: getAvatarGradient(profile?.username || "User") }}
             >
               <AvatarFallback 
-                className="text-2xl text-white"
-                style={{ backgroundColor: getAvatarColor(profile?.username || "User") }}
+                className="text-2xl text-white font-bold"
+                style={{ background: getAvatarGradient(profile?.username || "User") }}
               >
                 {getInitials(profile?.username || "User")}
               </AvatarFallback>

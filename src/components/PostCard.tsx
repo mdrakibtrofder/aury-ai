@@ -194,19 +194,19 @@ export default function PostCard({
       .slice(0, 2);
   };
 
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      'hsl(340 82% 65%)', // Pink
-      'hsl(280 80% 65%)', // Purple
-      'hsl(200 82% 60%)', // Blue
-      'hsl(160 70% 50%)', // Teal
-      'hsl(25 85% 60%)',  // Orange
-      'hsl(45 90% 55%)',  // Yellow
-      'hsl(120 60% 50%)', // Green
-      'hsl(15 80% 60%)',  // Red-Orange
+  const getAvatarGradient = (name: string) => {
+    const gradients = [
+      'linear-gradient(135deg, hsl(340 82% 65%), hsl(280 80% 65%))',
+      'linear-gradient(135deg, hsl(200 82% 60%), hsl(160 70% 50%))',
+      'linear-gradient(135deg, hsl(25 85% 60%), hsl(45 90% 55%))',
+      'linear-gradient(135deg, hsl(280 80% 65%), hsl(200 82% 60%))',
+      'linear-gradient(135deg, hsl(160 70% 50%), hsl(120 60% 50%))',
+      'linear-gradient(135deg, hsl(45 90% 55%), hsl(15 80% 60%))',
+      'linear-gradient(135deg, hsl(340 82% 65%), hsl(25 85% 60%))',
+      'linear-gradient(135deg, hsl(120 60% 50%), hsl(200 82% 60%))',
     ];
     const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[index % colors.length];
+    return gradients[index % gradients.length];
   };
 
   const handleProfileClick = (e: React.MouseEvent) => {
@@ -226,12 +226,12 @@ export default function PostCard({
       <div className="flex items-start gap-3 mb-4">
         <Avatar 
           className="h-10 w-10 border-2 border-background shadow-md cursor-pointer hover:opacity-80 transition-opacity"
-          style={{ backgroundColor: author.isBot ? undefined : getAvatarColor(author.name) }}
+          style={{ background: author.isBot ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' : getAvatarGradient(author.name) }}
           onClick={handleProfileClick}
         >
           <AvatarFallback 
-            className={cn(author.isBot ? "gradient-primary text-white" : "text-white")}
-            style={{ backgroundColor: author.isBot ? undefined : getAvatarColor(author.name) }}
+            className="text-white font-medium"
+            style={{ background: author.isBot ? 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)))' : getAvatarGradient(author.name) }}
           >
             {getInitials(author.name)}
           </AvatarFallback>

@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import RightSidebar from "@/components/RightSidebar";
 import PostCard from "@/components/PostCard";
 import AskComposer from "@/components/AskComposer";
 import LoadingPost from "@/components/LoadingPost";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,6 +16,7 @@ const Index = () => {
   const [filteredPosts, setFilteredPosts] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
 
   useEffect(() => {
     loadPosts();
@@ -21,20 +24,34 @@ const Index = () => {
 
   useEffect(() => {
     filterPostsByView();
-  }, [currentView, posts]);
+  }, [currentView, posts, selectedTopic]);
 
   const filterPostsByView = () => {
+    let filtered = [...posts];
+
+    // Filter by topic if selected
+    if (selectedTopic) {
+      filtered = filtered.filter(post => 
+        post.topics?.includes(selectedTopic)
+      );
+    }
+
+    // Apply view filter
     if (currentView === "recent") {
-      const sorted = [...posts].sort((a, b) => 
+      filtered.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
-      setFilteredPosts(sorted);
     } else if (currentView === "trending") {
       // Show posts with most reactions
-      setFilteredPosts([...posts]);
-    } else {
-      setFilteredPosts(posts);
+      filtered = [...filtered];
     }
+
+    setFilteredPosts(filtered);
+  };
+
+  const handleTopicClick = (topic: string) => {
+    setSelectedTopic(selectedTopic === topic ? null : topic);
+    setCurrentView("home");
   };
 
   const loadPosts = async () => {
@@ -123,16 +140,33 @@ const Index = () => {
       <div className="flex">
         <Sidebar 
           currentView={currentView} 
-          onViewChange={setCurrentView}
+          onViewChange={(view) => {
+            setCurrentView(view);
+            setSelectedTopic(null);
+          }}
         />
         
         {/* Main Feed */}
         <main className="flex-1 max-w-3xl mx-auto px-4 py-6 space-y-4">
           {/* View Title */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold capitalize">{currentView} Feed</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-2xl font-bold capitalize">{currentView} Feed</h2>
+              {selectedTopic && (
+                <Badge 
+                  variant="secondary" 
+                  className="text-sm cursor-pointer"
+                  onClick={() => setSelectedTopic(null)}
+                >
+                  #{selectedTopic} ✕
+                </Badge>
+              )}
+            </div>
             <p className="text-muted-foreground text-sm mt-1">
-              Discover AI-powered conversations and insights
+              {selectedTopic 
+                ? `Showing posts tagged with #${selectedTopic}`
+                : "Discover AI-powered conversations and insights"
+              }
             </p>
           </div>
 
@@ -179,6 +213,8 @@ const Index = () => {
             </div>
           )}
         </main>
+
+        <RightSidebar onTopicClick={handleTopicClick} />
       </div>
 
       {/* Ask Composer Modal */}
